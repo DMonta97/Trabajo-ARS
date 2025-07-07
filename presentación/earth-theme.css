@@ -1,0 +1,59 @@
+/* Fondo claro y sobrio */
+.remark-slide-content {
+  background-color: #FAEBD7; /* casi blanco, cálido */
+  color: #1f1f1f; /* texto general: gris muy oscuro */
+  font-family: 'Georgia', serif;
+  font-size: 22px;
+  line-height: 1.5;
+}
+
+/* Títulos */
+h1, h2, h3 {
+  color: #2e1c0f; /* marrón oscuro sobrio */
+  font-weight: bold;
+}
+
+/* Títulos grandes */
+.big-title {
+  font-size: 50px;
+  font-weight: bold;
+  color: #2b1a10;
+}
+
+/* Texto pequeño */
+.small {
+  font-size: 70%;
+}
+
+/* Texto en esquina inferior izquierda */
+.corner-note {
+  position: absolute;
+  bottom: 25px;
+  left: 25px;
+  font-size: 16px;
+  color: #3a2a1a;
+  font-style: italic;
+}
+
+/* Estilo para la diapositiva de título */
+.title-slide {
+  background-color: #FAEBD7 !important; /* mismo fondo sobrio */
+  color: #2e1c0f /*!important;            /* marrón oscuro sobrio */
+  font-family: 'Garamond', 'Georgia', serif;
+}
+
+.title-slide h1, 
+.title-slide h2, 
+.title-slide h3 {
+  color: #2e1c0f !important;
+}
+
+ul {
+  margin-top: 15px;
+  margin-left: 30px;
+}
+
+ul li {
+  margin-bottom: 10px;
+  color: #3e2f1c; /* marrón oscuro suave */
+}
