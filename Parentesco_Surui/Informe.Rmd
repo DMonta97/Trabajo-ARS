@@ -1,0 +1,374 @@
+---
+title: "Parentesco Surui"
+author: "Daniel Montabone"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r, include=FALSE}
+# Cargar Librerías
+suppressPackageStartupMessages({
+  library(tidyverse)
+  library(readxl)
+  library(igraph)
+  library(network)
+  library(intergraph)
+  library(sna)
+  library(statnet)
+  library(knitr)
+  library(kableExtra)
+})
+```
+
+```{r, include=FALSE}
+source("code/1_masterfile.R")
+```
+
+# Conceptualización
+
+## a) Definición Temática:
+
+El estudio se centra en las alianzas matrimoniales de la comunidad Suruí, analizando cómo los patrones de parentesco y las estructuras familiares se organizan en red. La literatura antropológica destaca que estas redes no solo reflejan la cohesión social, sino también mecanismos de **endogamia/exogamia** (matrimonio dentro/fuera del clan) (Lévi-Strauss, 1949) y **homogamia/heterogamia** (uniones según etnia) , que pueden influir en la transmisión de recursos, poder y capital social(Bourdieu, 1972). Estos procesos, entendidos como estrategias de reproducción social , revelan cómo las alianzas matrimoniales articulan jerarquías y acceso a bienes simbólicos y materiales(Goody, 1976).
+
+**Pregunta de Investigación:** ¿Cómo interactúan los atributos familiares (intergeneracionalidad, tipo de unión clan/etnia) y los mecanismos estructurales para explicar la formación de alianzas matrimoniales en la red Suruí?
+
+## b) Lógica de investigación:
+
+Este estudio sigue una lógica deductiva, ya que busca testear hipótesis predefinidas sobre los mecanismos que estructuran la red de parentesco Suruí, utilizando modelos estadísticos (ERGMs). El análisis parte de teorías antropológicas y de redes sociales que sugieren que la estructura de red juega un papel central en la configuración de las alianzas (Freeman, 1978).
+
+Justificación del enfoque:
+
+Los modelos ERGM evalúan hipótesis específicas (Wasserman & Faust, 1997; Kolaczyk & Csárdi, 2014), evaluar la homofilia en el tipo de familia constituida, si es endogámica, del mismo clan o generación.
+
+La red ya está construida, y el objetivo es validar patrones teóricos (no explorar emergentes).
+
+Los resultados permiten generalizar mecanismos aplicables a otras redes de parentesco.
+
+Esta lógica se ajusta a la pregunta, ya que cuantifica relaciones causales entre atributos y estructura, en lugar de generar nuevas teorías desde cero.
+
+## c) Tipo de Red:
+
+Este trabajo analiza una red sociocéntrica, desde una perspectiva macrosocial, dado que el objetivo es comprender los patrones estructurales globales que explican la formación de alianzas matrimoniales en la tribu Suruí. La red incluye todas las familias como nodos y los vínculos dirigidos (padres → hijos) como arcos, permitiendo así:
+
+Identificar mecanismos globales:
+
+-   Homofilia (nodematch en clan, generación o etnia).
+-   Procesos estructurales (gwesp para transitividad).
+
+Explicar fenómenos colectivos:
+
+-   Concentración de conexiones en subgrupos (endogamia vs. exogamia).
+-   Efectos de la estructura en la difusión de normas culturales.
+
+## d) Nodos
+
+Cada nodo en esta red representa una unidad familiar Suruí, definida por la unión matrimonial de una pareja y su descendencia.
+
+**Variables Analizadas** **Tipo de Matrimonio (atributo binario):**
+
+-   Endogamia/Exogamia (clan): Indica si la unión ocurrió dentro del mismo clan (1 = Endogamia) o entre clanes distintos (2 = Exogamia).
+-   Homogamia/Heterogamia (etnia): Clasifica si los cónyuges pertenecen a la misma etnia (1 = Homogamia) o a etnias diferentes (2 = Heterogamia).
+
+**Intergeneracionalidad (atributo binario):**
+
+-   1 = Isogeneracional: Ambos cónyuges pertenecen a la misma generación.
+-   2 = Anisogeneracional: Los cónyuges son de generaciones distintas.
+
+Nota: Los casos con valor "Desconocido" (codificados como 0) fueron excluidos de los modelos estadísticos para garantizar la robustez de los análisis.
+
+**Número de Hijos (variable continua):**
+
+Representa la cantidad de descendientes directos por familia, inferida a partir de los registros individuales en la base de datos.
+
+Procesamiento de Datos Todas las métricas fueron derivadas de los datos individuales originales en atributos familiares agregados.
+
+```{r}
+tabla_variables <- data.frame(
+  "Nodo" = c("Familias", "", "", ""),
+  "Variable" = c("Matrimonio Tipo 1", "Matrimonio Tipo 2", "Intergeneracionalidad", "Número de Hijos"),
+  "Niveles" = c(
+    "(1) Endogamia (mismo clan); (2) Exogamia (clan distinto)",
+    "(1) Homogamia (misma etnicidad); (2) Heterogamia (distinta etnicidad",
+    "(1) Isogeneracional; (2) Anisogeneracional", 
+    "Entero (ej: 1, 2, 3...)"
+  ),
+  "Tipo" = c("Binaria", "Binaria", "Binaria", "Continua")
+)
+
+kable(tabla_variables, 
+      caption = "Tabla 1",
+      align = c("l", "l", "l", "l", "c"),
+      col.names = c("Nodo", "Variable", "Niveles", "Tipo")) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                full_width = FALSE) %>%
+  column_spec(1, width = "3cm") %>%
+  column_spec(2, width = "3cm") %>%
+  column_spec(3, width = "8cm") %>%
+  footnote(general = paste("Muestra esperada: 383 familias"),
+           general_title = "Fuente: https://www.kinsources.net/kidarep/dataset-68-surui.xhtml") %>%
+  kable_classic(full_width = FALSE, html_font = "Cambria")
+```
+
+## e) Vínculos
+
+Los vínculos en esta red representan relaciones de filiación directa entre familias, donde un arco dirigido conecta a una familia parental (padres) con una familia filial (hijos que forman nuevas unidades familiares). Esta relación es, dentro de la clasificación de Stephen Borgatti et al, (2022), un vínculo de parentesco dentro de los roles relacionales.
+
+## f) Datos
+
+Los datos analizados corresponden a la red de parentesco de la comunidad Suruí, obtenidos del repositorio abierto Kinsources.net, una plataforma especializada en antropología y redes de parentesco. La base de datos original fue creada en 2011 como parte de un proyecto etnográfico sobre estructuras familiares en poblaciones indígenas de la Amazonía (Cédric Yvinec, 2011). 
+
+
+# Implementación
+
+## a) Visualización
+
+### Visualización 1
+
+```{r, fig.height=8, fig.width=8}
+plot(surui_igr,
+     vertex.label = NA,
+     vertex.label.color = "black",
+     vertex.size=c(5),
+     edge.width = 0.6,                
+     edge.arrow.size = 0.4,           
+     edge.color = "gray70")
+title("Flujo de Alianzas Matrimoniales Suruí")
+```
+
+La red muestra los nodos, que representan familias, conectados por arcos que indican el flujo de alianzas matrimoniales. Se observa una densa concentración central con conexiones que se expanden de forma direccional hacia la periferia, sugiriendo un patrón de descendencia jerárquica.
+
+### Visualización 2
+
+```{r, fig.height=8, fig.width=8}
+V(surui_igr)$color1 <- case_when(
+  V(surui_igr)$Mat_Tip1 == 1 ~ "#CD2626",     
+  V(surui_igr)$Mat_Tip1 == 2 ~ "#1874CD",    
+  V(surui_igr)$Mat_Tip1 == 0 ~ "#808080",  
+  TRUE ~ "#FFFFFF")
+
+plot(surui_igr,
+     vertex.label = NA,
+     vertex.color = V(surui_igr)$color1,
+     vertex.size=c(5),
+     edge.width = 0.5,                
+     edge.arrow.size = 0.3,           
+     edge.color = "gray70")
+legend("topright",
+       legend = c("Endogamia", "Exogamia", "Desconocido"),
+       fill = c("#CD2626", "#1874CD", "#808080"),
+       title = "Tipo de Unión",
+       bty = "n")
+title("Flujo de Alianzas Matrimoniales Suruí\nEndogamia-Exogamia (Clan)")
+```
+
+Al diferenciar los nodos según el tipo de matrimonio a nivel de clan (endogamia vs. exogamia), se identifica una clara predominancia de la exogamia (uniones entre clanes distintos), evidenciada por la mayor proporción de nodos en azul. Esto refleja una preferencia cultural por la diversificación de alianzas interclan.
+
+### Visualización 3
+
+```{r, fig.height=8, fig.width=8}
+V(surui_igr)$color2 <- case_when(
+  V(surui_igr)$Mat_Tip2 == 1 ~ "#FFC125",    
+  V(surui_igr)$Mat_Tip2 == 2 ~ "#00BFFF",    
+  V(surui_igr)$Mat_Tip2 == 0 ~ "#808080",  
+  TRUE ~ "#FFFFFF")
+
+plot(surui_igr,
+     vertex.label = NA,
+     vertex.color = V(surui_igr)$color2,
+     vertex.size=c(5),
+     edge.width = 0.5,                
+     edge.arrow.size = 0.3,           
+     edge.color = "gray70")
+legend("topright",
+       legend = c("Homogamia", "Heterogamia", "Desconocido"),
+       fill = c("#FFC125", "#00BFFF", "#808080"),
+       title = "Tipo de Unión",
+       bty = "n")
+title("Flujo de Alianzas Matrimoniales Suruí\nHomogamia-Heterogamia (Etnia)")
+```
+
+Al clasificar los nodos por el tipo de unión étnica (homogamia vs. heterogamia), destaca la homogamia (uniones intraétnicas, nodos en amarillo), indicando que, pese a la exogamia de clan, prevalece la cohesión étnica en las alianzas.
+
+## b) Descriptivos
+
+```{r}
+kable(tabla_metricas, 
+      format = "pipe",  
+      booktabs = TRUE,  
+      align = c("l", "c"),
+      caption = "Métricas de la Red Suruí")  %>%
+  kable_classic(full_width = FALSE, html_font = "Cambria")
+  
+```
+
+## c) Interpretación:
+
+La red está compuesta por 383 nodos (familias) con 596 conexiones, presentando una baja densidad. Esto indica que la red está fragmentada, con pocas relaciones recíprocas, lo que favorece la formación de subgrupos o linajes. Este patrón coincide con hallazgos en otras sociedades amazónicas, donde la dispersión residencial (Rivière, 1984) y las alianzas diádicas (Viveiros de Castro, 2002) generan redes poco densas pero estratégicas, evitando la concentración de poder. Entre los Suruí, como en los Yanomami estudiados por Albert (1985), la fragmentación puede responder a lógicas de autonomía grupal y gestión flexible de conflictos, donde los subgrupos mantienen vínculos selectivos para equilibrar cooperación y competencia por recursos.
+
+-   **Grado medio**: Cada familia tiene, en promedio, 3 vínculos.
+
+-   **Grado de entrada (in-degree)**: 1.5, lo que significa que cada familia recibe, en promedio, 1.5 matrimonios de otras familias.
+
+-   **Grado de salida (out-degree)**: También 1.5, indicando que cada familia emite, en promedio, 1.5 matrimonios hacia otras.
+
+-   **Centralidad de Katz:**: La familia Surui_316 presenta el mayor valor, lo que la identifica como la más influyente en la red. Esto sugiere que podría tratarse de una familia longeva o con una descendencia numerosa, lo que incrementa su influencia. La centralidad de eigenvector está diseñada para redes no dirigidas, por lo que se incorporó esta alternativa (Newman, 2010).
+
+-   **Betweenness (intermediación)**: La familia Surui_011 tiene el valor más alto, actuando como un puente obligado en el flujo de matrimonios. Esto implica que es un hub estructural, conectando múltiples linajes.
+
+-   **Centralidad de Cercanía (Closeness)**: Cercanía de salida (out-closeness): La familia Surui_006 tiene el valor más alto, lo que significa que puede influir más rápidamente en otras familias.
+
+-   **Cercanía de entrada (in-closeness)**: La familia Surui_012 presenta el valor más alto, indicando que tiene el acceso más rápido a sus ancestros. Sin embargo, esta métrica tiene utilidad limitada en redes dirigidas.
+
+## d) Propuesta de Modelo Inferencial:
+
+### Modelo 1
+
+```{r}
+summ_modelo <- summary(modelo_1)
+tabla_coef <- as.data.frame(summary(modelo_1)$coefficients) %>%
+  tibble::rownames_to_column("Variable") %>%
+  mutate(
+    `p` = case_when(
+      `Pr(>|z|)` < 0.001 ~ "<0.001 ***",
+      `Pr(>|z|)` < 0.01 ~ sprintf("%.3f **", `Pr(>|z|)`),
+      `Pr(>|z|)` < 0.05 ~ sprintf("%.3f *", `Pr(>|z|)`),
+      TRUE ~ sprintf("%.3f", `Pr(>|z|)`)
+    )
+  ) %>%
+  select(Variable, 
+         Estimación = Estimate, 
+         `Error Est.` = `Std. Error`, 
+         `Valor z` = `z value`, 
+         `p`)
+
+kable(tabla_coef, align = c("l", "c", "c", "c", "c"),
+      caption = "Resultados del Modelo ERGM") %>%
+  kable_styling(bootstrap_options = c("striped", "hover")) %>%
+  add_footnote(paste("AIC:", round(AIC(modelo_1), 2)),
+               notation = "none") %>%
+  add_footnote(paste("BIC:", round(BIC(modelo_1), 2)),
+               notation = "none") %>%
+  kable_classic(full_width = FALSE, html_font = "Cambria")
+```
+
+En el primer modelo ERGM se evaluaron las variables de número de hijos (tanto en su versión entrante como saliente) y la homofilia en intergeneracionalidad. Los resultados mostraron que:
+
+-   El número de hijos salientes (out) presenta un efecto positivo y estadísticamente significativo (p \< 0.01), indicando que las familias con mayor descendencia tienen un 26% más de probabilidad de establecer nuevas alianzas matrimoniales.
+-   Por el contrario, ni el número de hijos entrantes (in) ni la homofilia intergeneracional alcanzaron significancia estadística.
+
+### Modelo 2
+
+```{r}
+tabla_coef <- as.data.frame(summary(modelo_2)$coefficients) %>%
+  tibble::rownames_to_column("Variable") %>%
+  mutate(
+    `p` = case_when(
+      `Pr(>|z|)` < 0.001 ~ "<0.001 ***",
+      `Pr(>|z|)` < 0.01 ~ sprintf("%.3f **", `Pr(>|z|)`),
+      `Pr(>|z|)` < 0.05 ~ sprintf("%.3f *", `Pr(>|z|)`),
+      TRUE ~ sprintf("%.3f", `Pr(>|z|)`)
+    )
+  ) %>%
+  select(Variable, 
+         Estimación = Estimate, 
+         `Error Est.` = `Std. Error`, 
+         `Valor z` = `z value`, 
+         `p`)
+
+kable(tabla_coef, align = c("l", "c", "c", "c", "c"),
+      caption = "Resultados del Modelo ERGM") %>%
+  kable_styling(bootstrap_options = c("striped", "hover")) %>%
+  add_footnote(paste("AIC:", round(AIC(modelo_2), 2)),
+               notation = "none") %>%
+  add_footnote(paste("BIC:", round(BIC(modelo_2), 2)),
+               notation = "none") %>%
+  kable_classic(full_width = FALSE, html_font = "Cambria")
+```
+
+En el segundo modelo ERGM se analizaron las mismas variables de número de hijos (entrantes y salientes), junto con la homofilia en el tipo de matrimonio (endogamia/exogamia). Los resultados mostraron que:
+
+-   El número de hijos salientes (out) mantuvo su significancia estadística (p \< 0.001), replicando el hallazgo del modelo anterior sobre su efecto positivo en la formación de alianzas.
+-   La homofilia en el tipo de matrimonio (endogamia/exogamia) no alcanzó significancia estadística.
+-   Al igual que en el modelo previo, el número de hijos entrantes (in) no mostró efectos estadísticamente significativos.
+
+### Modelo 3
+
+```{r}
+tabla_coef <- as.data.frame(summary(modelo_3)$coefficients) %>%
+  tibble::rownames_to_column("Variable") %>%
+  mutate(
+    `p` = case_when(
+      `Pr(>|z|)` < 0.001 ~ "<0.001 ***",
+      `Pr(>|z|)` < 0.01 ~ sprintf("%.3f **", `Pr(>|z|)`),
+      `Pr(>|z|)` < 0.05 ~ sprintf("%.3f *", `Pr(>|z|)`),
+      TRUE ~ sprintf("%.3f", `Pr(>|z|)`)
+    )
+  ) %>%
+  select(Variable, 
+         Estimación = Estimate, 
+         `Error Est.` = `Std. Error`, 
+         `Valor z` = `z value`, 
+         `p`)
+
+kable(tabla_coef, align = c("l", "c", "c", "c", "c"),
+      caption = "Resultados del Modelo ERGM") %>%
+  kable_styling(bootstrap_options = c("striped", "hover")) %>%
+  add_footnote(paste("AIC:", round(AIC(modelo_3), 2)),
+               notation = "none") %>%
+  add_footnote(paste("BIC:", round(BIC(modelo_3), 2)),
+               notation = "none") %>%
+  kable_classic(full_width = FALSE, html_font = "Cambria")
+```
+
+En el tercer modelo ERGM, se incluyeron todas las variables previas (número de hijos entrantes/salientes y homofilia intergeneracional) más la homofilia del segundo tipo de matrimonio (homogamia/heterogamia). Los resultados mostraron:
+
+1.  Se replicaron los hallazgos anteriores:
+
+-   Efecto positivo y significativo (p \< 0.05) del número de hijos salientes --No significatividad del número de hijos entrantes (p \> 0.05)
+
+2.  Nuevo hallazgo:
+
+-   La homofilia en el segundo tipo de matrimonio presentó un efecto positivo del 64% con alta significancia estadística, lo que quiere decir que el tipo de matrimonio de la familia de origen aumenta la posibilidad de que el matrimonio de sus hijos sea del mismo tipo.
+
+3.  Indicadores de ajuste:
+
+-   Este modelo obtuvo los valores más bajos de AIC y BIC entre los tres modelos evaluados -- Esto lo convierte en el modelo con mejor ajuste estadístico a los datos
+
+# Bibliografía
+
+  Albert, B. (1985). Temps du sang, temps des cendres: Représentation de la parenté et du temps chez les Yanomami. Paris: Éditions de la Maison des Sciences de l’Homme.
+
+  Borgatti, S. P., Everett, M. G., Johnson, J. C., & Agneessens, F. (2022). Analyzing social networks (2nd ed.). London: SAGE Publications.
+
+  Bourdieu, P. (1972). Esquisse d’une théorie de la pratique. Genève: Droz.
+(Traducción española: Bourdieu, P. (1979). El sentido práctico. Madrid: Taurus.)
+
+  Cédric Yvinec (2011), Surui dataset, https://www.kinsources.net/kidarep/dataset-68-surui.xhtml
+
+  Freeman, L. C. (1978). Centrality in social networks: Conceptual clarification. Social Networks, 1(3), 215–239. https://doi.org/10.1016/0378-8733(78)90021-7
+
+  Goody, J. (1976). Production and reproduction: A comparative study of the domestic domain. Cambridge: Cambridge University Press.
+
+  Kolaczyk, E. D., & Csárdi, G. (2014). Statistical analysis of network data with R. New York: Springer. https://doi.org/10.1007/978-1-4939-0983-3
+
+  Lévi-Strauss, C. (1949). Les structures élémentaires de la parenté. Paris: Presses Universitaires de France.
+(Traducción española: Lévi-Strauss, C. (1969). Las estructuras elementales del parentesco. Buenos Aires: Paidós.)
+
+  Newman, M. E. J. (2010). Networks: An introduction. Oxford: Oxford University Press. https://doi.org/10.1093/acprof:oso/9780199206650.001.0001
+
+  Rivière, P. (1984). Individual and society in Guiana: A comparative study of Amerindian social organisation. Cambridge: Cambridge University Press.
+
+  Viveiros de Castro, E. (2002). A inconstância da alma selvagem: e outros ensaios de antropologia. São Paulo: Cosac Naify.
+
+  Wasserman, S., & Faust, K. (1994). Social network analysis: Methods and applications. Cambridge: Cambridge University Press.
+
+
+
